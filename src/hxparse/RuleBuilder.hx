@@ -31,11 +31,15 @@ class RuleBuilderImpl {
 								rules.push(field.name);
 								delays.push(transformRule.bind(field, e, t, fieldExprs));
 							case EMeta({name: ":mapping", params: args}, e):
+								var toLowerCase = false;
 								var offset = switch(args) {
 									case [{expr: EConst(CInt(i))}]: Std.parseInt(i);
+									case [{expr: EConst(CInt(i))}, {expr: EConst(CIdent(toLowerCaseStr))}]: 
+										if (toLowerCaseStr == "true") toLowerCase = true;
+										Std.parseInt(i);
 									case _: 0;
 								}
-								delays.push(transformMapping.bind(field, e, offset));
+								delays.push(transformMapping.bind(field, e, offset, toLowerCase));
 							case _:
 								fieldExprs.set(field.name, e);
 						}
@@ -186,14 +190,16 @@ class RuleBuilderImpl {
 		return e;
 	}
 
-	static function transformMapping(field:Field, e:Expr, offset:Int) {
+	static function transformMapping(field:Field, e:Expr, offset:Int, toLowercase:Bool) {
 		var t = Context.typeof(e).follow();
 		var sl = [];
 		switch(t) {
 			case TAnonymous(a):
 				for (f in a.get().fields) {
 					var name = macro @:pos(e.pos) $i{f.name};
-					var cName = f.name.charAt(offset).toLowerCase() + f.name.substr(offset + 1);
+					
+					var cName = if (toLowercase) f.name.substr(offset).toLowerCase();
+					else f.name.charAt(offset).toLowerCase() + f.name.substr(offset + 1);
 					sl.push(macro $v{cName} => $name);
 				}
 			case _:
